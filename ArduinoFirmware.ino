@@ -8,7 +8,7 @@
 #include <functional>
 
 #include <Adafruit_BNO08x.h>
-#include "IMUHelpers.h"
+#include "IMUSensor.h"
 
 const unsigned int NUM_OSCILLATORS = 8; // this number has to match entries in array osc[] (do NOT modify!!)
 
@@ -41,9 +41,12 @@ bool wifiReady = false;
 int status = WL_IDLE_STATUS;
 // A UDP instance to let us send and receive packets over UDP
 WiFiUDP udp;
+
+IMUSensor imu{};
 void setup()
 {
     Serial.begin(9600);
+    imu.init();
 
     WiFi.setPins(8, 7, 4, 2);
     WiFi.hostname(hostname.c_str());
@@ -112,6 +115,7 @@ void ledControl()
     ledState = newLedState;
 
     analogWrite(LED_BUILTIN, ledState);
+    //Serial.println(ledState);
 }
 
 void loop()
@@ -122,6 +126,8 @@ void loop()
     // Reading input can happen regardless of whether CPG updates
     // This ensures that we don't waste time doing nothing and will maximize responsiveness
     readInput();
+
+    //imu.update();
 
     // Used as a visual indicator of functionality
     ledControl();
@@ -294,6 +300,8 @@ void readInputSerial()
         if (dataBufferLength >= 2 && receivedCommHeader())
         {
             receivingData = true;
+
+            // We keep the first two bytes as it is already "ED"
             dataBufferLength = 2;
             continue;
         }
@@ -335,6 +343,14 @@ void readInputSerial()
     }
 }
 
+enum PacketInstructions{
+    IDENTIFY = 0,
+    UPDATE_OSCILLATOR = 1,
+    
+    SEND_MOTOR_DATA = 2,
+    SEND_IMU_DATA = 4,
+};
+
 template <typename T>
 void tryParsePacket(char *packet, size_t packetSize, T writeCallback)
 {
@@ -350,11 +366,11 @@ void tryParsePacket(char *packet, size_t packetSize, T writeCallback)
     char &packetInstruction = packetBuffer[0];
     char *packetData = packetBuffer + 1;
 
-    if (packetInstruction == 0) // Serial peer wants to receive EDMO identifier
+    if (packetInstruction == IDENTIFY) // Serial peer wants to receive EDMO identifier
     {
         writeCallback(idCode.c_str(), idCode.length());
     }
-    else if (packetInstruction == 1) // Serial peer is sending updated oscillator targets
+    else if (packetInstruction == UPDATE_OSCILLATOR) // Serial peer is sending updated oscillator targets
     {
         // Technically we shouldn't need to make a copy of the buffer, since nothing is supposed to write to the buffer at this point
         // However there is an issue with the UDP packets that causes the reinterpret_cast to fail
@@ -373,6 +389,10 @@ void tryParsePacket(char *packet, size_t packetSize, T writeCallback)
         OscillatorState command = *reinterpret_cast<OscillatorState *>(test);
 
         oscillators[command.targetOscillatorID].setState(command);
+    }
+    else if (packetInstruction == SEND_IMU_DATA) // Serial peer is requesting updated IMU data
+    {
+        imu.printTo(writeCallback);
     }
 }
 
