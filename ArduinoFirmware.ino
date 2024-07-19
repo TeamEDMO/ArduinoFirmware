@@ -147,7 +147,7 @@ bool packetHandler(char *packet, size_t packetSize, ICommStream *commStream)
     case SEND_IMU_DATA:
     {
         commStream->write(commHeader, 2);
-        commStream->write((uint8_t *)&packetInstruction, 1);
+        commStream->write(SEND_IMU_DATA);
         imu.printTo(commStream);
         commStream->write(commFooter, 2);
         return true;

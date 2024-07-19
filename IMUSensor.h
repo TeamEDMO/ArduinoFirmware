@@ -157,4 +157,4 @@ private:
     }
 };
 
-IMUSensor imu {};
+IMUSensor imu{};

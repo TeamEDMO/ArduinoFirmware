@@ -32,7 +32,7 @@ static size_t countEscapedLength(const char *const buffer, size_t length)
         if (isCommHeader(&buffer[i]) || isCommFooter(&buffer[i]))
             ++countOccurances;
 
-    return countOccurances;
+    return length + countOccurances;
 }
 
 static void escapeData(const char *const originalBuffer, char *const outputBuffer, size_t originalLength)
