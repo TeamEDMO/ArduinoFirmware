@@ -1,6 +1,9 @@
+#pragma once
+
 #include <Adafruit_BNO08x.h>
 #include <cstddef>
 #include <array>
+#include "Communications/ICommStream.h"
 
 template <typename T>
 struct SensorInfo
@@ -53,16 +56,13 @@ typedef struct quarternion
 class IMUSensor
 {
 private:
-    
     // This is measured in microseconds (1000µs == 1ms)
     // Smaller intervals => More sensor data, but may take up too much CPU time to process
     //  The default here is set to 500ms
     const uint32_t REPORT_INTERVAL = 500000;
 
-
     Adafruit_BNO08x bno08x{};
 
-    
     bool sensorPresent = false;
     bool initialized = false;
 
@@ -79,7 +79,7 @@ public:
     void init()
     {
         sensorPresent = bno08x.begin_I2C();
-        
+
         if (!sensorPresent)
             return;
 
@@ -124,11 +124,17 @@ public:
         }
     }
 
-    template <typename T>
-    void printTo(const T &printCallback)
+    void printTo(ICommStream *commStream)
     {
         char *dataBytes = reinterpret_cast<char *>(&rawData);
-        printCallback(dataBytes, sizeof(rawData));
+
+        // These data bytes may accidentally contain the header or footer, let's escape it to be safe
+        auto adjustedLength = countEscapedLength(dataBytes, sizeof(rawData));
+        char escapedData[adjustedLength];
+
+        escapeData(dataBytes, escapedData, sizeof(rawData));
+
+        commStream->write(dataBytes, sizeof(rawData));
     }
 
 private:
@@ -150,3 +156,5 @@ private:
             dataField};
     }
 };
+
+IMUSensor imu {};
