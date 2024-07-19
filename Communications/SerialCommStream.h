@@ -10,19 +10,27 @@ private:
     bool haveData = false;
     bool receivingData = false;
 
+    uint8_t writeBuffer[512];
+    size_t writeBufferLength = 0;
+
 public:
     void init() override
     {
         Serial.begin(115200);
     }
 
-    void write( const uint8_t *const  data, size_t length) override
+    void write(const uint8_t *const data, size_t length) override
     {
-        Serial.write(data, length);
+        if (writeBufferLength + length > 512)
+            length = 512 - writeBufferLength;
+
+        memcpy(writeBuffer + writeBufferLength, data, length);
+        writeBufferLength += length;
     }
 
-    void write(uint8_t byte) override{
-        Serial.write(byte);
+    void write(uint8_t byte) override
+    {
+        write(&byte, 1);
     }
 
     void update() override
@@ -82,10 +90,28 @@ public:
             // Relinquish control to packet handler
             receivingData = false;
 
+            begin();
+
             parsePacket(dataBuffer, dataBufferLength, this);
+            end();
 
             dataBufferLength = 0;
         }
+    }
+
+private:
+    void begin()
+    {
+        writeBufferLength = 0;
+    }
+
+    void end()
+    {
+        if (writeBufferLength == 0)
+            return;
+
+        Serial.write(writeBuffer, writeBufferLength);
+        writeBufferLength = 0;
     }
 };
 
