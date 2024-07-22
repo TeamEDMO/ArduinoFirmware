@@ -162,7 +162,7 @@ private:
         config.changeSensitivityRelative = false;
         config.alwaysOnEnabled = false;
         config.changeSensitivity = 0;
-        config.batchInterval_us = 200000; // Batch inputs for at most 200ms to not overload CPU
+        config.batchInterval_us = 500000UL; // Batch inputs for at most 500ms to not overload CPU
         config.sensorSpecific = 0;
 
         config.reportInterval_us = report_interval;
