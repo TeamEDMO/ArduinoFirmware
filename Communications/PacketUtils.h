@@ -28,21 +28,16 @@ static size_t countEscapedLength(const char *const buffer, size_t length)
 {
     size_t countOccurances = 0;
 
-    for (int i = 0; i < length - 1; ++i)
-        if (isCommHeader(&buffer[i]) || isCommFooter(&buffer[i]))
+    for (int i = 0; i < length; ++i)
+    {
+        if (buffer[i] == '\\')
             ++countOccurances;
 
-    return length + countOccurances;
-}
-
-static void escapeData(const char *const originalBuffer, char *const outputBuffer, size_t originalLength)
-{
-    for (int i = 0, j = 0; i < originalLength; ++i)
-    {
-        outputBuffer[j++] = originalBuffer[i];
-        if (isCommHeader(&originalBuffer[i]) || isCommFooter(&originalBuffer[i]))
-            outputBuffer[j++] = '\\';
+        if ((i < length - 1) && (isCommHeader(&buffer[i]) || isCommFooter(&buffer[i])))
+            ++countOccurances;
     }
+
+    return length + countOccurances;
 }
 
 // In place removal of escape characters
@@ -51,8 +46,8 @@ static size_t unescapeBuffer(char *const buffer, size_t length)
     size_t j = 0; // The length of the buffer with all escape characters removed
     for (int i = 0; i < length; ++i)
     {
-        if (i == '\\') // Ignore any escape characters
-            ++i;       // And take the next character immediately
+        if (buffer[i] == '\\') // Ignore any escape characters
+            ++i;               // And take the next character immediately
 
         // string ends in an escape character, but there are no characters after
         if (i >= length)
@@ -63,4 +58,19 @@ static size_t unescapeBuffer(char *const buffer, size_t length)
     }
 
     return j;
+}
+
+static void escapeData(const char *const originalBuffer, char *const outputBuffer, size_t originalLength)
+{
+    size_t j = 0;
+    for (int i = 0; i < originalLength; ++i)
+    {
+        outputBuffer[j++] = originalBuffer[i];
+
+        if (originalBuffer[i] == '\\')
+            outputBuffer[j++] = '\\';
+
+        if ((i < originalLength - 1) && (isCommHeader(&originalBuffer[i]) || isCommFooter(&originalBuffer[i])))
+            outputBuffer[j++] = '\\';
+    }
 }
