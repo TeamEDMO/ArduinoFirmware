@@ -44,7 +44,7 @@ static size_t countEscapedLength(const char *const buffer, size_t length)
 static size_t unescapeBuffer(char *const buffer, size_t length)
 {
     size_t j = 0; // The length of the buffer with all escape characters removed
-    for (int i = 0; i < length; ++i)
+    for (size_t i = 0; i < length; ++i)
     {
         if (buffer[i] == '\\') // Ignore any escape characters
             ++i;               // And take the next character immediately
@@ -63,7 +63,7 @@ static size_t unescapeBuffer(char *const buffer, size_t length)
 static void escapeData(const char *const originalBuffer, char *const outputBuffer, size_t originalLength)
 {
     size_t j = 0;
-    for (int i = 0; i < originalLength; ++i)
+    for (size_t i = 0; i < originalLength; ++i)
     {
         outputBuffer[j++] = originalBuffer[i];
 
