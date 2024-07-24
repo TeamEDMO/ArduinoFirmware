@@ -125,22 +125,16 @@ bool packetHandler(char *packet, size_t packetSize, ICommStream *commStream)
 
     case UPDATE_OSCILLATOR:
     {
-        // Technically we shouldn't need to make a copy of the buffer, since nothing is supposed to write to the buffer at this point
-        // However there is an issue with the UDP packets that causes the reinterpret_cast to fail
-        // Copying the buffer resolves the issue. Performance impact is negligable if the compiler haven't optimized it
-        char test[sizeof(OscillatorState)];
-        memcpy(test, packetData, OscillatorState::STRUCT_SIZE);
+        OscillatorState updateCommand{};
 
-        // Debug: Whether the state buffer is received in full
-        // Serial.write(stateBuffer, OscillatorState::STRUCT_SIZE);
+        std::memcpy(&updateCommand, packetData, sizeof(OscillatorState));
+        oscillators[updateCommand.targetOscillatorID].setState(updateCommand);
 
-        // We receive a buffer of 20 bytes, these are bytes for an OscillatorState
-        // We reinterpret the bytes as an OscillatorState, which can then be directly used to update each oscillator
-        //
-        // This operation is intentionally low level, as reinterpreting raw bytes is significantly faster than parsing ASCII strings
-        //  This also allows for more efficient state transmission. However care must be taken in regards to endianess, and struct alignment/packing.
-        OscillatorState command = *reinterpret_cast<OscillatorState *>(test);
-        oscillators[command.targetOscillatorID].setState(command);
+        return false;
+    }
+
+    case SEND_MOTOR_DATA:
+    {
         return false;
     }
 
