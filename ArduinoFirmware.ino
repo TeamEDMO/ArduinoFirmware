@@ -2,13 +2,15 @@
 #include "globals.h"
 #include <Adafruit_PWMServoDriver.h>
 #include <Wire.h>
-
+#include <cstring>
 #include "Oscillator.h"
 #include "IMUSensor.h"
 
 #include "Communications/PacketUtils.h"
 #include "Communications/WiFiCommStream.h"
 #include "Communications/SerialCommStream.h"
+
+#include "TimingUtils.h"
 
 // Timing variables
 unsigned long lastTime = 0;
@@ -87,10 +89,12 @@ void loop()
 enum PacketInstructions
 {
     IDENTIFY = 0,
-    UPDATE_OSCILLATOR = 1,
+    SESSION_START = 1,
+    GET_TIME = 2,
 
-    SEND_MOTOR_DATA = 2,
-    SEND_IMU_DATA = 4,
+    UPDATE_OSCILLATOR = 3,
+    SEND_MOTOR_DATA = 4,
+    SEND_IMU_DATA = 5,
 };
 
 // Takes parses a received packet, which contain an instruction and optionally additional data
@@ -119,6 +123,37 @@ bool packetHandler(char *packet, size_t packetSize, ICommStream *commStream)
         commStream->write(commHeader, 2);
         commStream->write(IDENTIFY); // Write the instruction as a response
         commStream->write((uint8_t *)idCode.c_str(), idCode.length());
+        commStream->write(commFooter, 2);
+        return true;
+    }
+
+    case SESSION_START:
+    {
+        auto currentTime = millis();
+
+        TimingUtils::setReferenceTime(currentTime);
+
+        size_t offsetTime {};
+        std::memcpy(&offsetTime, packetData, sizeof(size_t));
+
+        TimingUtils::setOffsetTime(offsetTime);
+        return false;
+    }
+
+    case GET_TIME:
+    {
+        auto returnedTime = TimingUtils::getTimeMillis();
+        auto dataBytes = reinterpret_cast<char *>(&returnedTime);
+
+        // These data bytes may accidentally contain the header or footer, let's escape it to be safe
+        auto adjustedLength = countEscapedLength(dataBytes, 4);
+        char escapedData[adjustedLength];
+
+        escapeData(dataBytes, escapedData, adjustedLength);
+
+        commStream->write(commHeader, 2);
+        commStream->write(GET_TIME);
+        commStream->write(escapedData, adjustedLength);
         commStream->write(commFooter, 2);
         return true;
     }

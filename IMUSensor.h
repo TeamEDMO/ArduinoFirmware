@@ -4,17 +4,27 @@
 #include <cstddef>
 #include <array>
 #include "Communications/ICommStream.h"
+#include "DebugUtils.h"
 
-#pragma pack(push, 1)
+#include "TimingUtils.h"
+
+#if IMU_SPI == 1
+#define BNO08X_CS 10
+#define BNO08X_INT 9
+#define BNO08X_RESET 5
+#else
+#define BNO08X_RESET -1
+#endif
+
 template <typename T>
 struct SensorInfo
 {
     uint32_t timestamp;
     uint8_t accuracy;
+    // There is 3 padding bytes here
 
     T value;
 };
-#pragma pack(pop)
 
 typedef struct vec3
 {
@@ -63,7 +73,7 @@ private:
     //  The default here is set to 500ms
     const uint32_t REPORT_INTERVAL = 1000;
 
-    Adafruit_BNO08x bno08x{};
+    Adafruit_BNO08x bno08x = Adafruit_BNO08x(BNO08X_RESET);
 
     bool sensorPresent = false;
     bool initialized = false;
@@ -81,10 +91,11 @@ private:
 public:
     void init()
     {
+#if IMU_SPI == 1
+        sensorPresent = bno08x.begin_SPI(BNO08X_CS, BNO08X_INT);
+#else
         sensorPresent = bno08x.begin_I2C();
-
-        if (!sensorPresent)
-            return;
+#endif
 
         enableReports();
         initialized = true;
@@ -97,35 +108,43 @@ public:
 
         if (bno08x.wasReset())
         {
-            //Serial.print("sensor was reset ");
+            Debug::write("Sensor was reset");
             enableReports();
         }
 
         sh2_SensorValue_t sensorData;
-
-        // No new sensor data, bailing
-        while (bno08x.getSensorEvent(&sensorData))
+        for (int i = 0; i < 5; ++i)
         {
+            if (!bno08x.getSensorEvent(&sensorData))
+                break;
+
             switch (sensorData.sensorId)
             {
             case SH2_GYROSCOPE_CALIBRATED:
+                Debug::write("Getting gyro");
                 rawData.gyroscope = createSensorInfoWith<vec3>(sensorData, sensorData.un.gyroscope);
                 break;
             case SH2_MAGNETIC_FIELD_CALIBRATED:
+                Debug::write("Getting mag");
                 rawData.magneticField = createSensorInfoWith<vec3>(sensorData, sensorData.un.magneticField);
                 break;
             case SH2_LINEAR_ACCELERATION:
+                Debug::write("Getting linacc");
                 rawData.accelerometer = createSensorInfoWith<vec3>(sensorData, sensorData.un.linearAcceleration);
                 break;
             case SH2_ROTATION_VECTOR:
+                Debug::write("Getting rot");
                 rawData.rotation = createSensorInfoWith<quarternion>(sensorData, sensorData.un.rotationVector);
                 break;
             case SH2_GRAVITY:
+                Debug::write("Getting grav");
                 rawData.gravity = createSensorInfoWith<vec3>(sensorData, sensorData.un.gravity);
+                break;
+            default:
                 break;
             }
         }
-
+        Debug::write("Getting sensor data complete\n");
     }
 
     void printTo(ICommStream *commStream)
@@ -138,7 +157,7 @@ public:
 
         escapeData(dataBytes, escapedData, sizeof(rawData));
 
-        commStream->write(dataBytes, sizeof(rawData));
+        commStream->write(escapedData, adjustedLength);
     }
 
 private:
@@ -156,22 +175,24 @@ private:
     {
         static sh2_SensorConfig_t config;
 
+        Debug::writef("Enabling %d \n", (int)sensorID);
+
         // These sensor options are disabled or not used in most cases
         config.changeSensitivityEnabled = false;
         config.wakeupEnabled = false;
         config.changeSensitivityRelative = false;
         config.alwaysOnEnabled = false;
         config.changeSensitivity = 0;
-        config.batchInterval_us = 500000UL; // Batch inputs for at most 500ms to not overload CPU
+        config.batchInterval_us = 0; // Batch inputs for at most 500ms to not overload CPU
         config.sensorSpecific = 0;
 
         config.reportInterval_us = report_interval;
         int status = sh2_setSensorConfig(sensorID, &config);
 
+        Debug::writef("Enabling %d yielded status %d\n", sensorID, status);
+
         if (status != SH2_OK)
-        {
             return false;
-        }
 
         return true;
     }
@@ -185,7 +206,7 @@ private:
     SensorInfo<T> createSensorInfoWith(const sh2_SensorValue_t &sensorData, const Y &dataField)
     {
         return SensorInfo<T>{
-            sensorData.delay / 1000,
+            TimingUtils::getTimeMillis(),
             sensorData.status,
             dataField};
     }

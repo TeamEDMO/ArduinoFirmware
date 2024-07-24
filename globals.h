@@ -34,3 +34,7 @@ Oscillator oscillators[NUM_OSCILLATORS] = {
     Oscillator(),
     Oscillator(),
     Oscillator()};
+
+
+// SPI has faster throughput, but more wires
+#define IMU_SPI 1
