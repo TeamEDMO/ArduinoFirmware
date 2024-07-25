@@ -20,6 +20,8 @@ const float MS_TO_S = 1.0f / 1000.0f;
 
 Adafruit_PWMServoDriver pwm = Adafruit_PWMServoDriver(0x40);
 
+bool pwmPresent = false;
+
 void setup()
 {
     SerialComms.init();
@@ -30,13 +32,16 @@ void setup()
 
     imu.init();
 
-    pwm.begin();
-    pwm.setPWMFreq(50);
-    delay(4);
+    pwmPresent = pwm.begin();
 
-    for (Oscillator &o : oscillators)
-        o.setPWM(pwm);
+    if (pwmPresent)
+    {
+        pwm.setPWMFreq(50);
+        delay(4);
 
+        for (Oscillator &o : oscillators)
+            o.setPWM(pwm);
+    }
     pinMode(LED_BUILTIN, OUTPUT);
     analogWrite(LED_BUILTIN, 0);
 }
@@ -81,9 +86,11 @@ void loop()
         return;
 
     double deltaTimeS = deltaTimeMS * MS_TO_S; // Make an interval with seconds
-
-    for (auto &oscillator : oscillators)
-        oscillator.update(deltaTimeS);
+    if (pwmPresent)
+    {
+        for (auto &oscillator : oscillators)
+            oscillator.update(deltaTimeS);
+    }
 }
 
 enum PacketInstructions
@@ -133,7 +140,7 @@ bool packetHandler(char *packet, size_t packetSize, ICommStream *commStream)
 
         TimingUtils::setReferenceTime(currentTime);
 
-        size_t offsetTime {};
+        size_t offsetTime{};
         std::memcpy(&offsetTime, packetData, sizeof(size_t));
 
         TimingUtils::setOffsetTime(offsetTime);
