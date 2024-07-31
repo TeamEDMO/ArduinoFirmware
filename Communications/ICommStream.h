@@ -15,7 +15,10 @@ public:
         this->write((uint8_t *)data, length);
     }
 
-    using PacketHandler = std::function<bool(char *, size_t, ICommStream *)>;
+    virtual void begin() = 0;
+    virtual void end() = 0;
+
+    using PacketHandler = std::function<void(char *, size_t, ICommStream *)>;
 
     PacketHandler handler;
     bool packetHandlerBound;
@@ -27,11 +30,11 @@ public:
     }
 
 protected:
-    bool parsePacket(char *packet, size_t length, ICommStream *commStream)
+    void parsePacket(char *packet, size_t length, ICommStream *commStream)
     {
         if (!packetHandlerBound)
-            return false;
+            return;
 
-        return handler(packet, length, commStream);
+        handler(packet, length, commStream);
     }
 };

@@ -109,7 +109,7 @@ enum PacketInstructions
 // This method returns true if a response is written, false otherwise.
 //
 // Any invalid instruction is dropped silently
-bool packetHandler(char *packet, size_t packetSize, ICommStream *commStream)
+void packetHandler(char *packet, size_t packetSize, ICommStream *commStream)
 {
     // Length of the packet without the header/footer
     size_t packetLength = packetSize - 4;
@@ -127,11 +127,13 @@ bool packetHandler(char *packet, size_t packetSize, ICommStream *commStream)
     {
     case IDENTIFY:
     {
+        commStream->begin();
         commStream->write(commHeader, 2);
         commStream->write(IDENTIFY); // Write the instruction as a response
         commStream->write((uint8_t *)idCode.c_str(), idCode.length());
         commStream->write(commFooter, 2);
-        return true;
+        commStream->end();
+        break;
     }
 
     case SESSION_START:
@@ -144,7 +146,7 @@ bool packetHandler(char *packet, size_t packetSize, ICommStream *commStream)
         std::memcpy(&offsetTime, packetData, sizeof(size_t));
 
         TimingUtils::setOffsetTime(offsetTime);
-        return false;
+        break;
     }
 
     case GET_TIME:
@@ -158,38 +160,61 @@ bool packetHandler(char *packet, size_t packetSize, ICommStream *commStream)
 
         escapeData(dataBytes, escapedData, adjustedLength);
 
+        commStream->begin();
         commStream->write(commHeader, 2);
         commStream->write(GET_TIME);
         commStream->write(escapedData, adjustedLength);
         commStream->write(commFooter, 2);
-        return true;
+        commStream->end();
+        break;
     }
 
     case UPDATE_OSCILLATOR:
     {
-        OscillatorState updateCommand{};
+        uint32_t targetOscillator = packetData[0];
+        OscillatorParams updateCommand{};
 
-        std::memcpy(&updateCommand, packetData, sizeof(OscillatorState));
-        oscillators[updateCommand.targetOscillatorID].setState(updateCommand);
+        std::memcpy(&updateCommand, packetData + 1, OscillatorParams::STRUCT_SIZE);
+        oscillators[targetOscillator].setParams(updateCommand);
 
-        return false;
+        break;
     }
 
     case SEND_MOTOR_DATA:
     {
-        return false;
+        for (auto &osc : oscillators)
+        {
+            auto data = osc.getState();
+
+            char *bytes = reinterpret_cast<char *>(&data);
+
+            auto escapedLength = countEscapedLength(bytes, OscillatorState::STRUCT_SIZE);
+
+            char escapedBuffer[escapedLength];
+
+            escapeData(bytes, escapedBuffer, OscillatorState::STRUCT_SIZE);
+
+            commStream->begin();
+            commStream->write(commHeader, 2);
+            commStream->write(SEND_MOTOR_DATA);
+            commStream->write(osc.id);
+            commStream->write(escapedBuffer, escapedLength);
+            commStream->write(commFooter, 2);
+            commStream->end();
+        }
+
+        break;
     }
 
     case SEND_IMU_DATA:
     {
+        commStream->begin();
         commStream->write(commHeader, 2);
         commStream->write(SEND_IMU_DATA);
         imu.printTo(commStream);
         commStream->write(commFooter, 2);
-        return true;
+        commStream->end();
+        break;
     }
-
-    default:
-        return false;
     }
 }

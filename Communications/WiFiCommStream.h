@@ -11,6 +11,8 @@ class WiFiCommStream : public virtual ICommStream
 {
 private:
     WiFiUDP udp{};
+    IPAddress remoteIP;
+    uint16_t remotePort;
 
 public:
     void init() override
@@ -32,6 +34,16 @@ public:
         udp.write(byte);
     }
 
+    void begin() override
+    {
+        udp.beginPacket(remoteIP, remotePort);
+    }
+
+    void end() override
+    {
+        udp.endPacket();
+    }
+
     void update() override
     {
         int packetSize = udp.parsePacket();
@@ -39,8 +51,8 @@ public:
         if (packetSize == 0)
             return;
 
-        auto remoteIP = udp.remoteIP();
-        auto remotePort = udp.remotePort();
+        remoteIP = udp.remoteIP();
+        remotePort = udp.remotePort();
 
         char packetBuffer[packetSize];
 
@@ -49,13 +61,7 @@ public:
         if (!buffcmp(packetBuffer, commHeader, 2) || !buffcmp(packetBuffer + length - 2, commFooter, 2))
             return;
 
-        udp.beginPacket(remoteIP, remotePort);
-
-        // No reply, don't send a packet
-        if (!parsePacket(packetBuffer, packetSize, this))
-            return;
-
-        udp.endPacket();
+        parsePacket(packetBuffer, packetSize, this);
     }
 };
 #else
@@ -72,6 +78,14 @@ public:
     }
 
     void update() override
+    {
+    }
+
+    void begin() override
+    {
+    }
+
+    void end() override
     {
     }
 };

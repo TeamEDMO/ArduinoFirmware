@@ -5,15 +5,28 @@
 // It also allows us to cast 12 byte char* received from serial communication,
 // saving parsing overhead
 
-struct OscillatorState
+struct OscillatorParams
 {
   const static size_t STRUCT_SIZE;
 
-  unsigned int targetOscillatorID;
   float freq;
   float amp;
   float offset;
   float phaseShift;
+};
+
+const size_t OscillatorParams::STRUCT_SIZE{sizeof(OscillatorParams)};
+
+struct OscillatorState
+{
+  const static size_t STRUCT_SIZE;
+
+  float freq;
+  float amp;
+  float offset;
+  float phaseShift;
+
+  float phase;
 };
 
 const size_t OscillatorState::STRUCT_SIZE{sizeof(OscillatorState)};

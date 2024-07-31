@@ -7,11 +7,7 @@ private:
     char dataBuffer[512];
     size_t dataBufferLength = 0;
 
-    bool haveData = false;
     bool receivingData = false;
-
-    uint8_t writeBuffer[512];
-    size_t writeBufferLength = 0;
 
 public:
     void init() override
@@ -21,16 +17,20 @@ public:
 
     void write(const uint8_t *const data, size_t length) override
     {
-        if (writeBufferLength + length > 512)
-            length = 512 - writeBufferLength;
-
-        memcpy(writeBuffer + writeBufferLength, data, length);
-        writeBufferLength += length;
+        Serial.write(data, length);
     }
 
     void write(uint8_t byte) override
     {
         write(&byte, 1);
+    }
+
+    void begin() override 
+    {
+    }
+
+    void end() override
+    {
     }
 
     void update() override
@@ -90,28 +90,9 @@ public:
             // Relinquish control to packet handler
             receivingData = false;
 
-            begin();
-
             parsePacket(dataBuffer, dataBufferLength, this);
-            end();
-
             dataBufferLength = 0;
         }
-    }
-
-private:
-    void begin()
-    {
-        writeBufferLength = 0;
-    }
-
-    void end()
-    {
-        if (writeBufferLength == 0)
-            return;
-
-        Serial.write(writeBuffer, writeBufferLength);
-        writeBufferLength = 0;
     }
 };
 
