@@ -163,43 +163,11 @@ public:
 private:
     void enableReports()
     {
-        // Pure data
-        tryEnable(SH2_LINEAR_ACCELERATION);
-        tryEnable(SH2_GYROSCOPE_CALIBRATED);
-        tryEnable(SH2_MAGNETIC_FIELD_CALIBRATED);
-        tryEnable(SH2_GRAVITY);
-        tryEnable(SH2_ROTATION_VECTOR);
-    }
-
-    bool enableReport(sh2_SensorId_e sensorID, size_t report_interval = 10000UL)
-    {
-        static sh2_SensorConfig_t config;
-
-        Debug::writef("Enabling %d \n", (int)sensorID);
-
-        // These sensor options are disabled or not used in most cases
-        config.changeSensitivityEnabled = false;
-        config.wakeupEnabled = false;
-        config.changeSensitivityRelative = false;
-        config.alwaysOnEnabled = false;
-        config.changeSensitivity = 0;
-        config.batchInterval_us = 0; // Batch inputs for at most 500ms to not overload CPU
-        config.sensorSpecific = 0;
-
-        config.reportInterval_us = report_interval;
-        int status = sh2_setSensorConfig(sensorID, &config);
-
-        Debug::writef("Enabling %d yielded status %d\n", sensorID, status);
-
-        if (status != SH2_OK)
-            return false;
-
-        return true;
-    }
-
-    void tryEnable(sh2_SensorId_e reportType)
-    {
-        enableReport(reportType);
+        bno08x.enableReport(SH2_LINEAR_ACCELERATION);
+        bno08x.enableReport(SH2_GYROSCOPE_CALIBRATED);
+        bno08x.enableReport(SH2_MAGNETIC_FIELD_CALIBRATED);
+        bno08x.enableReport(SH2_GRAVITY);
+        bno08x.enableReport(SH2_ROTATION_VECTOR);
     }
 
     template <typename T, typename Y>

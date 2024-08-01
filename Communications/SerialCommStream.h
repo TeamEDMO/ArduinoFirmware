@@ -77,7 +77,7 @@ public:
             // As long as we haven't received the data, we will not proceed with parsing
             if (!isCommFooter(dataBufferEnd - 2))
             {
-                // SPECIAL CASE: Buffer overflow - Too much data, we drop the transmission
+                // SPECIAL CASE: Buffer overflow - Packet too large, we drop the transmission
                 if (dataBufferLength == 512)
                 {
                     receivingData = false;

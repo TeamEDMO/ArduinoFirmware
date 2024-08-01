@@ -8,24 +8,9 @@
 class Oscillator
 {
 public:
-    Oscillator(unsigned int servoMin = 100, unsigned int servoMax = 450, float amplitude = 0, float offset = 90, float phaseShift = 0, float frequency = 0)
-        : id{nextID++}, servoMin{servoMin}, servoMax{servoMax}
+    Oscillator(unsigned int servoMin = 100, unsigned int servoMax = 450, const OscillatorParams &parameters = {})
+        : id{nextID++}, servoMin{servoMin}, servoMax{servoMax}, state{parameters}, params{parameters}, defaultParams{parameters}
     {
-        state = {
-            frequency,
-            amplitude,
-            offset,
-            phaseShift,
-            0};
-
-        params = {
-            frequency,
-            amplitude,
-            offset,
-            phaseShift};
-
-        this->servoMin = servoMin;
-        this->servoMax = servoMax;
     }
 
     void setPWM(Adafruit_PWMServoDriver &pwm) { this->pwm = &pwm; }
@@ -54,6 +39,11 @@ public:
         pwm->setPWM(id, 0, motorAngle);
     }
 
+    void reset()
+    {
+        state = params = defaultParams;
+    }
+
     // Adjusts a parameter of this oscillator using information obtained from an OscillatorUpdateCommand
     // Assuming the struct is used as a Serial communication format, one can easily reinterpret a 12byte char[] as an OscillatorUpdateCommand
     void setParams(const OscillatorParams &command)
@@ -61,7 +51,7 @@ public:
         params = command;
     }
 
-    OscillatorState getState() const
+    const OscillatorState &getState() const
     {
         return state;
     }
@@ -79,6 +69,8 @@ private:
 
     OscillatorParams params;
     OscillatorState state;
+
+    const OscillatorParams defaultParams;
 
     unsigned int servoMin, servoMax;
 };

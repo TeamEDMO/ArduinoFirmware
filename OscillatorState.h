@@ -7,26 +7,27 @@
 
 struct OscillatorParams
 {
-  const static size_t STRUCT_SIZE;
-
-  float freq;
-  float amp;
-  float offset;
-  float phaseShift;
+  float freq = 0;
+  float amp = 0;
+  float offset = 90;
+  float phaseShift = 0;
 };
-
-const size_t OscillatorParams::STRUCT_SIZE{sizeof(OscillatorParams)};
 
 struct OscillatorState
 {
-  const static size_t STRUCT_SIZE;
+  OscillatorState(const OscillatorParams &params)
+  {
+    freq = params.freq;
+    amp = params.amp;
+    offset = params.offset;
+    phaseShift = params.phaseShift;
+    phase = 0;
+  }
 
-  float freq;
-  float amp;
-  float offset;
-  float phaseShift;
+  float freq = 0;
+  float amp = 0;
+  float offset = 90;
+  float phaseShift = 0;
 
-  float phase;
+  float phase = 0;
 };
-
-const size_t OscillatorState::STRUCT_SIZE{sizeof(OscillatorState)};

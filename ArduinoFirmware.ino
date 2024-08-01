@@ -63,15 +63,12 @@ void ledControl()
     ledState = newLedState;
 
     analogWrite(LED_BUILTIN, ledState);
-    // Serial.println(ledState);
 }
 
 void loop()
 {
-    unsigned long time = millis();
-    unsigned long deltaTimeMS = time - lastTime;
-
-    lastTime = time; // update the previous time step (do NOT modify!!)
+    // Used as a visual indicator of functionality
+    ledControl();
 
     // Reading input can happen regardless of whether CPG updates
     // This ensures that we don't waste time doing nothing and will maximize responsiveness
@@ -79,9 +76,12 @@ void loop()
     WifiComms.update();
     imu.update();
 
-    // Used as a visual indicator of functionality
-    ledControl();
+    unsigned long time = millis();
+    unsigned long deltaTimeMS = time - lastTime;
 
+    lastTime = time; // update the previous time step (do NOT modify!!)
+
+    // If it hasn't been 10ms since last update, we skip updating the oscillator
     if (deltaTimeMS < 10)
         return;
 
@@ -118,13 +118,19 @@ void packetHandler(char *packet, size_t packetSize, ICommStream *commStream)
     char *packetBuffer = packet + 2;
 
     // Unescape packet contents in place
-    auto ttt = unescapeBuffer(packetBuffer, packetLength);
+    unescapeBuffer(packetBuffer, packetLength);
 
+    // The first byte of the packet contents is expected to be the instruction
     char &packetInstruction = packetBuffer[0];
+
+    // The rest of the packet contain data/arguments associated with the instruction
+    // The length of the data is always fixed based on the called instruction
     char *packetData = packetBuffer + 1;
 
     switch (packetInstruction)
     {
+    // Simply announce the robots name
+    // Also used during Wifi communication to indicate presence on the network (aka pinging)
     case IDENTIFY:
     {
         commStream->begin();
@@ -136,8 +142,17 @@ void packetHandler(char *packet, size_t packetSize, ICommStream *commStream)
         break;
     }
 
+    // The host has declared that a session has started/continued
+    // This is required in order to align the IMU timestamps with the session timestamp
+    // A manual time offset is provided as packet data,
+    //    this is used to realign the timestamp if the device is reset while a session is active
+    //    (otherwise the restarted device will report back with timestamp 0, causing serverside logging to be non-linear)
     case SESSION_START:
     {
+        // Make sure all oscillators are reset to initial state
+        for (auto osc : oscillators)
+            osc.reset();
+
         auto currentTime = millis();
 
         TimingUtils::setReferenceTime(currentTime);
@@ -149,13 +164,16 @@ void packetHandler(char *packet, size_t packetSize, ICommStream *commStream)
         break;
     }
 
+    // Provides the current time based on the reference timestamp, used by the server to keep track of the last known arduino time
+    //  (Probably could compute it themselves tbh)
+    // The sent data is escaped as it may contain the header/footer bytes due to the variable nature of the time
     case GET_TIME:
     {
         auto returnedTime = TimingUtils::getTimeMillis();
-        auto dataBytes = reinterpret_cast<char *>(&returnedTime);
+        auto dataBytes = reinterpret_cast<const char *>(&returnedTime);
 
         // These data bytes may accidentally contain the header or footer, let's escape it to be safe
-        auto adjustedLength = countEscapedLength(dataBytes, 4);
+        size_t adjustedLength = countEscapedLength(dataBytes, 4);
         char escapedData[adjustedLength];
 
         escapeData(dataBytes, escapedData, adjustedLength);
@@ -169,30 +187,35 @@ void packetHandler(char *packet, size_t packetSize, ICommStream *commStream)
         break;
     }
 
+    // The host is sending updated oscillator parameters
+    // The packet data contains 2 arguments, the first byte is the target oscillator
+    // The rest of the packet data is the oscillator parameters
     case UPDATE_OSCILLATOR:
     {
-        uint32_t targetOscillator = packetData[0];
+        uint8_t targetOscillator = packetData[0];
         OscillatorParams updateCommand{};
 
-        std::memcpy(&updateCommand, packetData + 1, OscillatorParams::STRUCT_SIZE);
+        std::memcpy(&updateCommand, packetData + 1, sizeof(OscillatorParams));
         oscillators[targetOscillator].setParams(updateCommand);
 
         break;
     }
 
+    // The host is requesting the current oscillator states (not to be confused with the oscillator params)
+    // The sent data is escaped as it may contain the header/footer bytes due to the variable nature of the the state variables
     case SEND_MOTOR_DATA:
     {
         for (auto &osc : oscillators)
         {
-            auto data = osc.getState();
+            auto &data = osc.getState();
 
-            char *bytes = reinterpret_cast<char *>(&data);
+            const char *bytes = reinterpret_cast<const char *>(&data);
 
-            auto escapedLength = countEscapedLength(bytes, OscillatorState::STRUCT_SIZE);
+            size_t escapedLength = countEscapedLength(bytes, sizeof(OscillatorState));
 
             char escapedBuffer[escapedLength];
 
-            escapeData(bytes, escapedBuffer, OscillatorState::STRUCT_SIZE);
+            escapeData(bytes, escapedBuffer, sizeof(OscillatorState));
 
             commStream->begin();
             commStream->write(commHeader, 2);
@@ -206,6 +229,8 @@ void packetHandler(char *packet, size_t packetSize, ICommStream *commStream)
         break;
     }
 
+    // The host is requesting current IMU sensor data
+    // The sent data is escaped as it may contain the header/footer bytes due to the variable nature of the the IMU variables
     case SEND_IMU_DATA:
     {
         commStream->begin();
