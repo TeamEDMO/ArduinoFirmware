@@ -73,6 +73,14 @@ public:
     {
     }
 
+    void write(const uint8_t *data, size_t length)
+    {
+    }
+    
+    void write(const uint8_t byte)
+    {
+    }
+
     void write(const char *const data, size_t length) override
     {
     }
