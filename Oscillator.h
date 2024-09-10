@@ -21,16 +21,18 @@ public:
         // Calculate deltas
         float offsetDelta = OFFSET_CHANGE_FACTOR * (params.offset - state.offset);
         float amplitudeDelta = AMPLITUDE_CHANGE_FACTOR * (params.amp - state.amp);
-        const float phaseDelta = TWO_PI;
+        float phaseDelta = (TWO_PI * state.freq);
         float phaseShiftDelta = PHASESHIFT_CHANGE_FACTOR * (params.phaseShift - state.phaseShift);
+        float freqDelta = FREQ_CHANGE_FACTOR * (params.freq - state.freq);
 
         // Apply derivative from last tick/frame/timestep
         state.amp += amplitudeDelta * dt;
         state.phase += phaseDelta * dt;
         state.offset += offsetDelta * dt;
         state.phaseShift += phaseShiftDelta * dt;
+        state.freq += freqDelta * dt;
 
-        float position = state.amp * sinf((state.phase - state.phaseShift) * state.freq) + state.offset;
+        float position = state.amp * sinf(state.phase - state.phaseShift) + state.offset;
 
         uint16_t motorAngle = map(constrain(position, 0, 180), 0, 180, servoMin, servoMax);
 
@@ -47,7 +49,6 @@ public:
     void setParams(const OscillatorParams &command)
     {
         params = command;
-        state.freq = params.freq;
     }
 
     const OscillatorState &getState() const
