@@ -1,4 +1,4 @@
-
+#include <Arduino.h>
 #include "globals.h"
 #include <Adafruit_PWMServoDriver.h>
 #include <Wire.h>
@@ -26,6 +26,13 @@ bool pwmPresent = false;
 // Create a semaphore that weakens after 10s
 CommunicationSemaphore semaphore{10000};
 ICommStream *secondaryCommstream = &dummyComms;
+
+void packetHandler(char *packet, size_t packetSize, ICommStream *commStream);
+void sendDataBatch(ICommStream *commStream, ICommStream *commStream2);
+void announceIdentity(ICommStream *commStream);
+
+void writeTo(ICommStream *commStream, const char *data, size_t length);
+void writeTo(ICommStream *commStream, byte data);
 
 void setup()
 {

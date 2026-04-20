@@ -7,7 +7,7 @@
 #include "Oscillator.h"
 
 // Name of the device
-const std::string idCode{"Suzanne"};
+const std::string idCode{"Kleopatra"};
 
 // Packet headers and footers
 const char commHeader[]{'E', 'D'};
@@ -15,7 +15,7 @@ const char commFooter[]{'M', 'O'};
 
 // WiFi support stuff
 
-#define WIFI_SUPPORT 1
+#define WIFI_SUPPORT 0
 
 #if WIFI_SUPPORT == 1
 const std::string hostname{"EDMO: " + idCode};
