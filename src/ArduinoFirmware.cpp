@@ -262,7 +262,7 @@ void packetHandler(char *packet, size_t packetSize, ICommStream *commStream)
         WifiComms.PerformOnAllChannels(announceIdentity);
 
         // Make sure all oscillators are reset to initial state
-        for (auto osc : oscillators)
+        for (auto& osc : oscillators)
             osc.reset();
 
         auto currentTime = millis();
