@@ -10,9 +10,11 @@
 #include "Communications/WiFiCommManager.h"
 #include "CommunicationSemaphore.h"
 #include "Communications/SerialCommStream.h"
+#include "Communications/DummyCommStream.h"
 
 #include "TimingUtils.h"
 #include <optional>
+#include <vector>
 // Timing variables
 unsigned long lastTime = 0;
 unsigned long timeStep = 10; // period used to update CPG state variables and servo motor control (do NOT modify!!)
@@ -21,21 +23,26 @@ const float MS_TO_S = 1.0f / 1000.0f;
 
 Adafruit_PWMServoDriver pwm = Adafruit_PWMServoDriver(0x40);
 
+std::vector<Oscillator> oscillators{};
+
 bool pwmPresent = false;
 
 // Create a semaphore that weakens after 10s
 CommunicationSemaphore semaphore{10000};
-ICommStream *secondaryCommstream = &dummyComms;
+CommunicationStream *secondaryCommstream = &dummyComms;
 
-void packetHandler(char *packet, size_t packetSize, ICommStream *commStream);
-void sendDataBatch(ICommStream *commStream, ICommStream *commStream2);
-void announceIdentity(ICommStream *commStream);
+void packetHandler(char *packet, size_t packetSize, CommunicationStream *commStream);
+void sendDataBatch(CommunicationStream *commStream, CommunicationStream *commStream2);
+void announceIdentity(CommunicationStream *commStream);
 
-void writeTo(ICommStream *commStream, const char *data, size_t length);
-void writeTo(ICommStream *commStream, byte data);
+void writeTo(CommunicationStream *commStream, const char *data, size_t length);
+void writeTo(CommunicationStream *commStream, byte data);
 
 void setup()
 {
+    for (auto i = 0; i < NUM_OSCILLATORS; ++i)
+        oscillators.emplace_back(std::get<0>(oscillatorLimits[i]), std::get<1>(oscillatorLimits[i]));
+
     SerialComms.init();
     SerialComms.bindPacketHandler(packetHandler);
 
@@ -140,7 +147,7 @@ void copy(const char *from, char *to, size_t length, size_t offset)
         to[i + offset] = from[i];
     }
 }
-void sendDataBatch(ICommStream *commStream, ICommStream *commStream2)
+void sendDataBatch(CommunicationStream *commStream, CommunicationStream *commStream2)
 {
     commStream->begin();
     commStream2->begin();
@@ -197,14 +204,14 @@ void sendDataBatch(ICommStream *commStream, ICommStream *commStream2)
     commStream2->end();
 }
 
-void writeTo(ICommStream *commStream, const char *data, size_t length)
+void writeTo(CommunicationStream *commStream, const char *data, size_t length)
 {
     if (commStream == nullptr)
         return;
 
     commStream->write(data, length);
 }
-void writeTo(ICommStream *commStream, byte data)
+void writeTo(CommunicationStream *commStream, byte data)
 {
     if (commStream == nullptr)
         return;
@@ -213,11 +220,11 @@ void writeTo(ICommStream *commStream, byte data)
 }
 
 // Takes parses a received packet, which contain an instruction and optionally additional data
-// This method may write a response via the provided ICommStream pointer
+// This method may write a response via the provided CommunicationStream pointer
 // This method returns true if a response is written, false otherwise.
 //
 // Any invalid instruction is dropped silently
-void packetHandler(char *packet, size_t packetSize, ICommStream *commStream)
+void packetHandler(char *packet, size_t packetSize, CommunicationStream *commStream)
 {
     // Length of the packet without the header/footer
     size_t packetLength = packetSize - 4;
@@ -262,7 +269,7 @@ void packetHandler(char *packet, size_t packetSize, ICommStream *commStream)
         WifiComms.PerformOnAllChannels(announceIdentity);
 
         // Make sure all oscillators are reset to initial state
-        for (auto& osc : oscillators)
+        for (auto &osc : oscillators)
             osc.reset();
 
         auto currentTime = millis();
@@ -316,7 +323,7 @@ void packetHandler(char *packet, size_t packetSize, ICommStream *commStream)
     }
 }
 
-void announceIdentity(ICommStream *commStream)
+void announceIdentity(CommunicationStream *commStream)
 {
     commStream->begin();
     commStream->write(commHeader, 2);
