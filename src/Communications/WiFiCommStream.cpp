@@ -51,28 +51,4 @@ void WiFiCommStream::updatePort(uint16_t port)
 
 void WiFiCommStream::update() {}
 
-#else
-
-struct WiFiCommStream::Impl
-{
-};
-
-WiFiCommStream::WiFiCommStream(WiFiUDP &host, IPAddress remoteIP, u_int16_t remotePort) {}
-
-void WiFiCommStream::init() {}
-
-void WiFiCommStream::write(const uint8_t *const data, size_t length) {}
-
-void WiFiCommStream::write(uint8_t byte) {}
-
-void WiFiCommStream::begin() {}
-
-void WiFiCommStream::end() {}
-
-void WiFiCommStream::receive(int packetSize, char *packetBuffer) {}
-
-void WiFiCommStream::updatePort(uint16_t port) {}
-
-void
-
 #endif

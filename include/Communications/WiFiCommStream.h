@@ -3,7 +3,7 @@
 #include "../globals.h"
 #include "CommunicationStream.h"
 
-#if WIFI_SUPPORT == 1
+#if WIFI_SUPPORT == 1 && !defined(ARDUINO_ADAFRUIT_FEATHER_ESP32_V2)
 
 #include <WiFi101.h>
 #include <WiFiUdp.h>
