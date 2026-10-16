@@ -10,7 +10,7 @@ template <typename T, typename Y>
 SensorInfo<T> createSensorInfoWith(const sh2_SensorValue_t &sensorData, const Y &dataField)
 {
     return SensorInfo<T>{
-        TimingUtils::getTimeMillis(),
+        TimingUtils::getTimeMillis() - sensorData.delay,
         sensorData.status,
         dataField};
 }
@@ -60,9 +60,10 @@ void IMUSensor::update()
             Debug::write("Getting linacc");
             rawData.accelerometer = createSensorInfoWith<vec3>(sensorData, sensorData.un.linearAcceleration);
             break;
-        case SH2_ROTATION_VECTOR:
+        case SH2_GAME_ROTATION_VECTOR:
             Debug::write("Getting rot");
-            rawData.rotation = createSensorInfoWith<quarternion>(sensorData, sensorData.un.rotationVector);
+            rawData.rotation = createSensorInfoWith<quarternion>(
+              sensorData, sensorData.un.gameRotationVector);
             break;
         case SH2_GRAVITY:
             Debug::write("Getting grav");
@@ -93,7 +94,7 @@ void IMUSensor::enableReports()
     bno08x.enableReport(SH2_GYROSCOPE_CALIBRATED);
     bno08x.enableReport(SH2_MAGNETIC_FIELD_CALIBRATED);
     bno08x.enableReport(SH2_GRAVITY);
-    bno08x.enableReport(SH2_ROTATION_VECTOR);
+    bno08x.enableReport(SH2_GAME_ROTATION_VECTOR);
 }
 
 IMUSensor imu{};
