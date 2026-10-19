@@ -9,7 +9,7 @@ bool CommunicationSemaphore::acquire(const UUID &lockID)
     unsigned long currentTime = millis();
 
     // We do not yield the lock, if the lock is held by another communication channel, but the timeout has not been exceeded
-    if (lockHolder != lockID && currentTime - lockTime < lockExpiry)
+    if (lockHolder != lockID && !lockExpired())
         return false;
 
     lockHolder = lockID;
@@ -30,6 +30,9 @@ bool CommunicationSemaphore::release(const UUID &lockID)
 
 const bool CommunicationSemaphore::lockExpired() const
 {
+    if(lockHolder == UUID({0,0,0,0}))
+        return true;
+
     unsigned long currentTime = millis();
 
     return (currentTime - lockTime) >= lockExpiry;
