@@ -10,7 +10,7 @@ template <typename T, typename Y>
 SensorInfo<T> createSensorInfoWith(const sh2_SensorValue_t &sensorData, const Y &dataField)
 {
     return SensorInfo<T>{
-        TimingUtils::getTimeMillis() - sensorData.delay,
+        TimingUtils::getTimeMillis() - (sensorData.delay / 1000),
         sensorData.status,
         dataField};
 }
